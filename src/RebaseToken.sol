@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import {IRebaseToken} from 'src/interfaces/IRebaseToken.sol';
 
 /**
  * @title Rebase Token
@@ -12,13 +13,7 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
  * @notice The interest rate in the smart contract can only decrease.
  * @notice Each user will have their own interest rate, that's the global interest rate at the time of deposit
  */
-contract RebaseToken is Ownable, ERC20, AccessControl {
-    /*//////////////////////////////////////////////////////////////
-                                 ERRORS
-    //////////////////////////////////////////////////////////////*/
-
-    error RebaseToken__InterestRateCanOnlyDecrease(uint256 oldInterestRate, uint256 newInterestRate);
-
+contract RebaseToken is Ownable, ERC20, AccessControl, IRebaseToken {
     /*//////////////////////////////////////////////////////////////
                             STATE VARIABLES
     //////////////////////////////////////////////////////////////*/
@@ -30,12 +25,6 @@ contract RebaseToken is Ownable, ERC20, AccessControl {
     bytes32 private constant MINT_AND_BURN_ROLE = keccak256("MINT_AND_BURN_ROLE");
     mapping(address user => uint256 interestRate) private s_userInterestRate;
     mapping(address user => uint256 lastMintedAt) private s_userLastUpdatedTimestamp;
-
-    /*//////////////////////////////////////////////////////////////
-                                 EVENTS
-    //////////////////////////////////////////////////////////////*/
-
-    event InterestRateSet(uint256 newInterestRate);
 
     /*//////////////////////////////////////////////////////////////
                                FUNCTIONS
@@ -110,7 +99,7 @@ contract RebaseToken is Ownable, ERC20, AccessControl {
      * @param _user The user to get balance for
      * @return The balance of the user including interest
      */
-    function balanceOf(address _user) public view override returns (uint256) {
+    function balanceOf(address _user) public view override(IRebaseToken, ERC20) returns (uint256) {
         // find the current balance of the rebase tokens that have been minted to them - Principle balance
         // calculate the interest balance
         // return the collective value as multiply the principle balance by the interest rate that has accumulated in time since the balance was last updated
@@ -124,7 +113,7 @@ contract RebaseToken is Ownable, ERC20, AccessControl {
      * @param _amount The amount to transfer
      * @return True, if the transfer was successful
      */
-    function transfer(address _recipient, uint256 _amount) public override returns (bool) {
+    function transfer(address _recipient, uint256 _amount) public override(IRebaseToken, ERC20) returns (bool) {
         //Check to see if they are sending their entire balance
         if (_amount == type(uint256).max) {
             _amount = balanceOf(msg.sender);
@@ -145,7 +134,7 @@ contract RebaseToken is Ownable, ERC20, AccessControl {
      * @param _amount The amount to transfer
      * @return True, if the transfer was successful
      */
-    function transferFrom(address _sender, address _recipient, uint256 _amount) public override returns (bool) {
+    function transferFrom(address _sender, address _recipient, uint256 _amount) public override(IRebaseToken, ERC20) returns (bool) {
         //if the caller is trying to send complete balance
         if (_amount == type(uint256).max) {
             _amount = balanceOf(_sender);

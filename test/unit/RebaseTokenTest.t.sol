@@ -6,6 +6,7 @@ import {RebaseToken} from "src/RebaseToken.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
+import {IRebaseToken} from "src/interfaces/IRebaseToken.sol";
 
 contract RebaseTokenTest is Test {
     RebaseToken rebase;
@@ -55,7 +56,7 @@ contract RebaseTokenTest is Test {
         uint256 newInterestRate = 5e11;
         vm.expectRevert(
             abi.encodeWithSelector(
-                RebaseToken.RebaseToken__InterestRateCanOnlyDecrease.selector, INITIAL_INTEREST_RATE, newInterestRate
+                IRebaseToken.RebaseToken__InterestRateCanOnlyDecrease.selector, INITIAL_INTEREST_RATE, newInterestRate
             )
         );
         vm.prank(OWNER);
@@ -65,7 +66,7 @@ contract RebaseTokenTest is Test {
     function test_SetNewInterestRate() external {
         uint256 newInterestRate = 4e10;
         vm.expectEmit(false, false, false, true);
-        emit RebaseToken.InterestRateSet(newInterestRate);
+        emit IRebaseToken.InterestRateSet(newInterestRate);
         vm.prank(OWNER);
         rebase.setInterestRate(newInterestRate);
     }
