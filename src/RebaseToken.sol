@@ -18,7 +18,7 @@ contract RebaseToken is Ownable, ERC20, AccessControl, IRebaseToken {
                             STATE VARIABLES
     //////////////////////////////////////////////////////////////*/
 
-    uint256 private s_interestRate = 5e10;
+    uint256 private s_interestRate = 5 * PRECISION_FACTOR / 1e8; // 5e10
     string public constant NAME = "Rebase token";
     string public constant SYMBOL = "RBT";
     uint256 private constant PRECISION_FACTOR = 1e18;
@@ -83,10 +83,6 @@ contract RebaseToken is Ownable, ERC20, AccessControl, IRebaseToken {
      * @param _amount the amount to burn
      */
     function burn(address _from, uint256 _amount) external onlyRole(MINT_AND_BURN_ROLE) {
-        // Measure to mitigate against dust which could have accumulated since the transaction submitted till transaction execution
-        if (_amount == type(uint256).max) {
-            _amount = balanceOf(_from);
-        }
         //mint the accrued interest first
         //burn all the tokens from the balance of the user
         _mintAccruedInterest(_from);
@@ -172,7 +168,8 @@ contract RebaseToken is Ownable, ERC20, AccessControl, IRebaseToken {
         uint256 primaryBalance = super.balanceOf(_user);
         uint256 timeElapsed = block.timestamp - s_userLastUpdatedTimestamp[_user];
         uint256 interestRate = s_userInterestRate[_user];
-        linearInterestBalance = primaryBalance * interestRate * timeElapsed / PRECISION_FACTOR;
+        // linearInterestBalance = primaryBalance * interestRate * timeElapsed / PRECISION_FACTOR;
+        linearInterestBalance = ((primaryBalance * interestRate) / PRECISION_FACTOR) * timeElapsed;
     }
 
     /**
