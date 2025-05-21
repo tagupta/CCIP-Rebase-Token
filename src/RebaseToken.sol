@@ -168,8 +168,8 @@ contract RebaseToken is Ownable, ERC20, AccessControl, IRebaseToken {
         uint256 primaryBalance = super.balanceOf(_user);
         uint256 timeElapsed = block.timestamp - s_userLastUpdatedTimestamp[_user];
         uint256 interestRate = s_userInterestRate[_user];
-        // linearInterestBalance = primaryBalance * interestRate * timeElapsed / PRECISION_FACTOR;
-        linearInterestBalance = ((primaryBalance * interestRate) / PRECISION_FACTOR) * timeElapsed;
+        linearInterestBalance = primaryBalance * interestRate * timeElapsed / PRECISION_FACTOR;
+        // linearInterestBalance = ((primaryBalance * interestRate) / PRECISION_FACTOR) * timeElapsed;
     }
 
     /**

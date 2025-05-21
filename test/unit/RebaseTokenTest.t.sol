@@ -232,8 +232,13 @@ contract RebaseTokenTest is Test {
     }
 
     function test_BurnCompleteBalance() external {
-        vm.prank(MINTER_BURNER);
-        rebase.burn(USER, type(uint256).max);
+        vm.startPrank(MINTER_BURNER);
+        uint256 amountToBurn = type(uint256).max;
+        if(amountToBurn == type(uint256).max){
+            amountToBurn = rebase.balanceOf(USER);
+        }
+        rebase.burn(USER, amountToBurn);
+        vm.stopPrank();
         assertEq(rebase.balanceOf(USER), 0);
     }
 
