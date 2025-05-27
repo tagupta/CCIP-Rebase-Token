@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
-import {IRebaseToken} from 'src/interfaces/IRebaseToken.sol';
+import {IRebaseToken} from "src/interfaces/IRebaseToken.sol";
 
 /**
  * @title Rebase Token
@@ -68,12 +68,12 @@ contract RebaseToken is Ownable, ERC20, AccessControl, IRebaseToken {
      * @param _to The user to mint tokens to
      * @param _amount The amount to mint
      */
-    function mint(address _to, uint256 _amount) external onlyRole(MINT_AND_BURN_ROLE) {
+    function mint(address _to, uint256 _amount, uint256 _interestRate) external onlyRole(MINT_AND_BURN_ROLE) {
         //set the interest rate for users
         //get accured interest
         //then mint the amount + accured interest over rebase token
         _mintAccruedInterest(_to);
-        s_userInterestRate[_to] = s_interestRate;
+        s_userInterestRate[_to] = _interestRate;
         _mint(_to, _amount);
     }
 
@@ -130,7 +130,11 @@ contract RebaseToken is Ownable, ERC20, AccessControl, IRebaseToken {
      * @param _amount The amount to transfer
      * @return True, if the transfer was successful
      */
-    function transferFrom(address _sender, address _recipient, uint256 _amount) public override(IRebaseToken, ERC20) returns (bool) {
+    function transferFrom(address _sender, address _recipient, uint256 _amount)
+        public
+        override(IRebaseToken, ERC20)
+        returns (bool)
+    {
         //if the caller is trying to send complete balance
         if (_amount == type(uint256).max) {
             _amount = balanceOf(_sender);

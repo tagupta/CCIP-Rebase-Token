@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: SEE LICENSE IN LICENSE
 pragma solidity ^0.8.19;
 
-import {Test} from "forge-std/Test.sol";
+import {Test,console} from "forge-std/Test.sol";
 import {RebaseToken} from "src/RebaseToken.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
@@ -23,8 +23,9 @@ contract RebaseTokenTest is Test {
         rebase.grantMintAndBurnRole(MINTER_BURNER);
         vm.stopPrank();
 
-        vm.prank(MINTER_BURNER);
-        rebase.mint(USER, INITIAL_VALUE);
+        vm.startPrank(MINTER_BURNER);
+        rebase.mint(USER, INITIAL_VALUE,rebase.getInterestRate());
+        vm.stopPrank();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -87,7 +88,7 @@ contract RebaseTokenTest is Test {
 
         // Verify old users keep old rate, new users get new rate
         vm.prank(MINTER_BURNER);
-        rebase.mint(NEW_USER, 1 ether);
+        rebase.mint(NEW_USER, 1 ether,newRate);
         assertEq(rebase.getUserInterestRate(USER), INITIAL_INTEREST_RATE);
         assertEq(rebase.getUserInterestRate(NEW_USER), newRate);
     }
@@ -110,12 +111,13 @@ contract RebaseTokenTest is Test {
 
     function test_OnlyMinterCanCallMint() external {
         vm.startPrank(address(0x123));
+        uint interestRate = rebase.getUserInterestRate(USER);
         vm.expectRevert(
             abi.encodeWithSelector(
                 IAccessControl.AccessControlUnauthorizedAccount.selector, address(0x123), rebase.getMintAndBurnRole()
             )
         );
-        rebase.mint(USER, INITIAL_VALUE);
+        rebase.mint(USER, INITIAL_VALUE, interestRate);
         vm.stopPrank();
     }
 
@@ -136,13 +138,13 @@ contract RebaseTokenTest is Test {
         vm.stopPrank();
 
         vm.startPrank(MINTER_BURNER);
-        //AccessControlUnauthorizedAccount(account, role);
+        uint256 userInterestRate = rebase.getUserInterestRate(USER);
         vm.expectRevert(
             abi.encodeWithSelector(
                 IAccessControl.AccessControlUnauthorizedAccount.selector, MINTER_BURNER, rebase.getMintAndBurnRole()
             )
         ); // Should fail after role revoked
-        rebase.mint(USER, 1 ether);
+        rebase.mint(USER, 1 ether, userInterestRate);
         vm.stopPrank();
     }
 
@@ -177,31 +179,35 @@ contract RebaseTokenTest is Test {
         vm.roll(block.number + 1);
         _;
     }
-
+    //TODO: Test this function
     function test_MintNewRebaseTokens() external changeTimeStamp {
         uint256 newAmountToBurn = 1 ether;
-        vm.prank(MINTER_BURNER);
-        rebase.mint(USER, newAmountToBurn);
+        vm.startPrank(MINTER_BURNER);
+        uint256 userInterestRate = rebase.getUserInterestRate(USER);
+        console.log("Fetching interest rate of user:", userInterestRate);
+        rebase.mint(USER, newAmountToBurn,userInterestRate);
 
         assertEq(rebase.balanceOf(USER), rebase.principleBalanceOf(USER));
+        vm.stopPrank();
     }
 
+    //TODO: Test this function
     function test_MultipleConsecutiveMints() public changeTimeStamp {
         uint256 primaryBalance = rebase.principleBalanceOf(USER);
 
         vm.startPrank(MINTER_BURNER);
         uint256 accruedBalance = rebase.calculateAccumulatedInterestSinceLastUpdate(USER);
-        rebase.mint(USER, 1 ether);
+        rebase.mint(USER, 1 ether, rebase.getUserInterestRate(USER));
 
         vm.warp(block.timestamp + 10);
         vm.roll(block.number + 1);
         accruedBalance += rebase.calculateAccumulatedInterestSinceLastUpdate(USER);
-        rebase.mint(USER, 1 ether);
+        rebase.mint(USER, 1 ether, rebase.getUserInterestRate(USER));
 
         vm.warp(block.timestamp + 10);
         vm.roll(block.number + 1);
         accruedBalance += rebase.calculateAccumulatedInterestSinceLastUpdate(USER);
-        rebase.mint(USER, 1 ether);
+        rebase.mint(USER, 1 ether, rebase.getUserInterestRate(USER));
         vm.stopPrank();
 
         uint256 expectedBalance = primaryBalance + accruedBalance + 3 ether;
@@ -213,9 +219,9 @@ contract RebaseTokenTest is Test {
         vm.warp(block.timestamp + 365 days * 10); // 10 years
         vm.roll(block.number + 1);
         uint256 interest = rebase.calculateAccumulatedInterestSinceLastUpdate(USER);
-        vm.prank(MINTER_BURNER);
-        rebase.mint(USER, 1 ether);
-
+        vm.startPrank(MINTER_BURNER);
+        rebase.mint(USER, 1 ether, rebase.getUserInterestRate(USER));
+        vm.stopPrank();
         assert(initialBalance + interest + 1 ether == rebase.balanceOf(USER));
     }
 
@@ -234,7 +240,7 @@ contract RebaseTokenTest is Test {
     function test_BurnCompleteBalance() external {
         vm.startPrank(MINTER_BURNER);
         uint256 amountToBurn = type(uint256).max;
-        if(amountToBurn == type(uint256).max){
+        if (amountToBurn == type(uint256).max) {
             amountToBurn = rebase.balanceOf(USER);
         }
         rebase.burn(USER, amountToBurn);
@@ -274,7 +280,7 @@ contract RebaseTokenTest is Test {
 
         //New USER -> IR = e4e10, USER -> IR = 5e10
         vm.prank(MINTER_BURNER);
-        rebase.mint(NEW_USER, INITIAL_VALUE); //Tokens minted using new interest rate
+        rebase.mint(NEW_USER, INITIAL_VALUE,newInterestRate); //Tokens minted using new interest rate
 
         //if USER tries to transfer all the funds to NEW_USER, then USER's IR changes to new Interest rate
         vm.prank(USER);

@@ -26,7 +26,8 @@ contract Vault {
      */
     function deposit() external payable {
         // we need to use the amount of ETH the user has sent to mint tokens
-        i_rebaseToken.mint(msg.sender, msg.value);
+        uint256 interestRate = i_rebaseToken.getInterestRate();
+        i_rebaseToken.mint(msg.sender, msg.value, interestRate);
         emit Deposit(msg.sender, msg.value);
     }
 
@@ -35,14 +36,14 @@ contract Vault {
      * @param _amount The amount of ETH to redeem
      */
     function redeem(uint256 _amount) external {
-           if (_amount == type(uint256).max) {
+        if (_amount == type(uint256).max) {
             _amount = i_rebaseToken.balanceOf(msg.sender);
         }
         // burn tokens from the user
         i_rebaseToken.burn(msg.sender, _amount);
         // tranfer the same amount of ETH back to user
-        (bool success, ) = payable(msg.sender).call{value: _amount}("");
-        if(!success) revert Vault__RedeemFailed();
+        (bool success,) = payable(msg.sender).call{value: _amount}("");
+        if (!success) revert Vault__RedeemFailed();
         emit Redeem(msg.sender, _amount);
     }
 

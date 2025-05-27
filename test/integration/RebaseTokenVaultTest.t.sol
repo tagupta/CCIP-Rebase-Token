@@ -6,8 +6,7 @@ import {RebaseToken} from "src/RebaseToken.sol";
 import {Vault} from "src/Vault.sol";
 import {IRebaseToken} from "src/interfaces/IRebaseToken.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {IAccessControl}from "@openzeppelin/contracts/access/IAccessControl.sol";
-
+import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 
 contract RebaseTokenVaultTest is Test {
     RebaseToken private rebase;
@@ -27,15 +26,15 @@ contract RebaseTokenVaultTest is Test {
         vm.stopPrank();
     }
 
-    function addRewardsToVault(uint256 amount) internal{
+    function addRewardsToVault(uint256 amount) internal {
         vm.prank(OWNER);
         vm.deal(OWNER, amount);
         //send the amount to the vault
-        (bool success, ) = payable(address(vault)).call{value: amount}("");
-        assertTrue(success, "Failed to send ETH to vault");   
+        (bool success,) = payable(address(vault)).call{value: amount}("");
+        assertTrue(success, "Failed to send ETH to vault");
     }
 
-    function testDepositLinear(uint256 amount) external{
+    function testDepositLinear(uint256 amount) external {
         amount = bound(amount, MIN_DEPOSIT, MAX_DEPOSIT);
         //deposit
         vm.startPrank(USER);
@@ -49,7 +48,7 @@ contract RebaseTokenVaultTest is Test {
 
         //warp the time and check the balance again
         vm.warp(block.timestamp + 1 hours);
-        uint256 middleBalance = rebase.balanceOf(USER);  
+        uint256 middleBalance = rebase.balanceOf(USER);
         console.log("Middle Balance: ", middleBalance);
         assertGt(middleBalance, startBalance, "New Balance should be greater than the start balance");
 
@@ -60,11 +59,11 @@ contract RebaseTokenVaultTest is Test {
         assertGt(endBalance, middleBalance, "New Balance should be greater than the middle balance");
 
         //check if the interest is linear
-        assertApproxEqAbs(endBalance - middleBalance, middleBalance - startBalance,1, "Interest should be linear");
+        assertApproxEqAbs(endBalance - middleBalance, middleBalance - startBalance, 1, "Interest should be linear");
         vm.stopPrank();
     }
 
-    function testRedeemStraightAway(uint256 amount) external{
+    function testRedeemStraightAway(uint256 amount) external {
         amount = bound(amount, MIN_DEPOSIT, MAX_DEPOSIT);
         //1. Deposit funds
         vm.startPrank(USER);
@@ -82,7 +81,7 @@ contract RebaseTokenVaultTest is Test {
         vm.stopPrank();
     }
 
-    function testRedeemAfterTimePassed(uint256 amount, uint time) external{
+    function testRedeemAfterTimePassed(uint256 amount, uint256 time) external {
         amount = bound(amount, MIN_DEPOSIT, MAX_DEPOSIT);
         time = bound(time, 1000, type(uint96).max);
         //1. depositfunds
@@ -106,10 +105,14 @@ contract RebaseTokenVaultTest is Test {
         uint256 ethUserBalance = address(USER).balance;
         assertEq(endBalance, 0, "Balance should be 0 after redeeming");
         assertGt(ethUserBalance, startBalance, "Balance should be greater than the amount deposited");
-        assertEq(ethUserBalance, amount + interestAccrued, "Balance should be equal to the amount deposited + interest accrued");
+        assertEq(
+            ethUserBalance,
+            amount + interestAccrued,
+            "Balance should be equal to the amount deposited + interest accrued"
+        );
     }
 
-    function testTransfer(uint256 amount, uint256 amountToSend) public{
+    function testTransfer(uint256 amount, uint256 amountToSend) public {
         amount = bound(amount, MIN_DEPOSIT + MIN_DEPOSIT, MAX_DEPOSIT);
         amountToSend = bound(amountToSend, MIN_DEPOSIT, amount - MIN_DEPOSIT);
         //1. deposit funds
@@ -130,13 +133,19 @@ contract RebaseTokenVaultTest is Test {
         // the recipient's interest rate should have set to the sender's interest rate
         uint256 recipientInterestRate = rebase.getUserInterestRate(recipient);
         uint256 senderInterestRate = rebase.getUserInterestRate(USER);
-        assertEq(recipientInterestRate, senderInterestRate, "Recipient interest rate should be equal to the sender's interest rate");
+        assertEq(
+            recipientInterestRate,
+            senderInterestRate,
+            "Recipient interest rate should be equal to the sender's interest rate"
+        );
         //3. check the recipient balance
         uint256 recipientBalance = rebase.balanceOf(recipient);
         assertEq(recipientBalance, amountToSend, "Recipient balance should be equal to the amount sent");
         //4. check the sender balance
         uint256 senderBalance = rebase.balanceOf(USER);
-        assertEq(senderBalance, amount - amountToSend, "Sender balance should be equal to the amount deposited - amount sent");
+        assertEq(
+            senderBalance, amount - amountToSend, "Sender balance should be equal to the amount deposited - amount sent"
+        );
     }
 
     function testCanNotSetTheInterestRateByANonOwner(uint256 newInterestRate) public {
@@ -148,16 +157,23 @@ contract RebaseTokenVaultTest is Test {
 
     function testCanNotCallMintAndBurnByNonMinter() public {
         vm.startPrank(USER);
-        vm.expectRevert(abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, USER, rebase.getMintAndBurnRole()));
-        rebase.mint(USER, MIN_DEPOSIT);
+        uint256 interestRate = rebase.getInterestRate();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector, USER, rebase.getMintAndBurnRole()
+            )
+        );
+        rebase.mint(USER, MIN_DEPOSIT, interestRate);
         vm.expectPartialRevert(IAccessControl.AccessControlUnauthorizedAccount.selector);
         rebase.burn(USER, MIN_DEPOSIT);
         vm.stopPrank();
     }
 
-    function testGetRebaseTokenAddress() view public {
+    function testGetRebaseTokenAddress() public view {
         address rebaseTokenAddress = vault.getRebaseTokenAddress();
-        assertEq(rebaseTokenAddress, address(rebase), "Rebase token address should be equal to the rebase token address");
+        assertEq(
+            rebaseTokenAddress, address(rebase), "Rebase token address should be equal to the rebase token address"
+        );
     }
 
     function testGetPrincipleTokenAmount(uint256 amount) public {
@@ -175,7 +191,9 @@ contract RebaseTokenVaultTest is Test {
         vm.warp(block.timestamp + 1 hours);
         //get the principle token amount again
         uint256 principleTokenAmountAfterTime = rebase.principleBalanceOf(USER);
-        assertEq(principleTokenAmountAfterTime, amount, "Principle token amount should be equal to the amount deposited");
+        assertEq(
+            principleTokenAmountAfterTime, amount, "Principle token amount should be equal to the amount deposited"
+        );
     }
 
     function testInterestRateCanOnlyDecrease(uint256 newInterestRate) public {
@@ -188,4 +206,3 @@ contract RebaseTokenVaultTest is Test {
         assertEq(rebase.getInterestRate(), initialInterestRate, "Interest rate should not be changed");
     }
 }
-    
