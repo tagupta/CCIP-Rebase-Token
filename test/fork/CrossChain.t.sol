@@ -117,7 +117,8 @@ contract CrosschainTest is Test {
         chainsToAdd[0] = TokenPool.ChainUpdate({
             remoteChainSelector: remoteNetworkDetails.chainSelector,
             allowed: true,
-            remotePoolAddress: abi.encode(remotePool), // Placeholder, will be set later
+            remotePoolAddress: remotePoolAddresses[0],
+            //abi.encode(remotePool), // Placeholder, will be set later
             remoteTokenAddress: abi.encode(remoteTokenAddress), // Placeholder, will be set later
             outboundRateLimiterConfig: outboundRateLimiter,
             inboundRateLimiterConfig: inboundRateLimiter
@@ -184,13 +185,79 @@ contract CrosschainTest is Test {
         //sepolia => arbitrum sepolia
         vm.selectFork(sepoliaFork);
         vm.deal(USER, SEND_VALUE);
-        vm.startPrank(USER);
-        console.log("Vault address: ", address(vault));
+        vm.prank(USER);
         Vault(payable(address(vault))).deposit{value: SEND_VALUE}();
         uint256 amountToBridge = sepoliaToken.balanceOf(USER);
         assertEq(amountToBridge, SEND_VALUE, "Initial balance mismatch");
         bridgeTokens(
             amountToBridge,
+            sepoliaFork,
+            arbSepoliaFork,
+            sepoliaNetworkDetails,
+            arbSepoliaNetworkDetails,
+            sepoliaToken,
+            arbSepoliaToken
+        );
+    }
+
+    function testBridgeAllTokensBack() public {
+        //sepolia => arbitrum sepolia
+        vm.selectFork(sepoliaFork);
+        vm.deal(USER, SEND_VALUE);
+        vm.prank(USER);
+        Vault(payable(address(vault))).deposit{value: SEND_VALUE}();
+        uint256 amountToBridge = sepoliaToken.balanceOf(USER);
+        assertEq(amountToBridge, SEND_VALUE, "Initial balance mismatch");
+        bridgeTokens(
+            amountToBridge,
+            sepoliaFork,
+            arbSepoliaFork,
+            sepoliaNetworkDetails,
+            arbSepoliaNetworkDetails,
+            sepoliaToken,
+            arbSepoliaToken
+        );
+        //bridge back the tokens from arbitrum sepolia to sepolia
+        vm.selectFork(arbSepoliaFork);
+        vm.warp(block.timestamp + 20 minutes); // Simulate time passing for the message to be processed
+        uint256 arbAmountToBridge = arbSepoliaToken.balanceOf(USER);
+        bridgeTokens(
+            arbAmountToBridge,
+            arbSepoliaFork,
+            sepoliaFork,
+            arbSepoliaNetworkDetails,
+            sepoliaNetworkDetails,
+            arbSepoliaToken,
+            sepoliaToken
+        );
+    }
+
+    function testBridgeTwice() public {
+        //sepolia => arbitrum sepolia
+        vm.selectFork(sepoliaFork);
+        vm.deal(USER, SEND_VALUE);
+        vm.prank(USER);
+        Vault(payable(address(vault))).deposit{value: SEND_VALUE}();
+        uint256 amountToBridge = sepoliaToken.balanceOf(USER);
+        assertEq(amountToBridge, SEND_VALUE, "Initial balance mismatch");
+        bridgeTokens(
+            amountToBridge/2,
+            sepoliaFork,
+            arbSepoliaFork,
+            sepoliaNetworkDetails,
+            arbSepoliaNetworkDetails,
+            sepoliaToken,
+            arbSepoliaToken
+        );
+
+        //wait for an hour for interest to accrue
+        //send interest from sepolia => arbitrum sepolia
+        vm.warp(block.timestamp + 1 hours);
+        vm.selectFork(sepoliaFork);
+        uint256 amountToBridgeAgain = sepoliaToken.balanceOf(USER);
+        //bridge again the same amount
+        bridgeTokens(
+            amountToBridgeAgain,
             sepoliaFork,
             arbSepoliaFork,
             sepoliaNetworkDetails,
