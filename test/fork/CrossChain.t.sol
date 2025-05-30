@@ -241,7 +241,7 @@ contract CrosschainTest is Test {
         uint256 amountToBridge = sepoliaToken.balanceOf(USER);
         assertEq(amountToBridge, SEND_VALUE, "Initial balance mismatch");
         bridgeTokens(
-            amountToBridge/2,
+            amountToBridge / 2,
             sepoliaFork,
             arbSepoliaFork,
             sepoliaNetworkDetails,
